@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Sign in — The Kettle{% endblock %}
+{% block content %}
+<section class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <a class="tab {{ 'active' if mode=='signin' else '' }}" href="{{ url_for('auth', mode='signin') }}">Sign in</a>
+      <a class="tab {{ 'active' if mode=='signup' else '' }}" href="{{ url_for('auth', mode='signup') }}">Sign up</a>
+    </div>
+
+    {% if mode == 'signup' %}
+    <form method="post" class="form">
+      <input type="hidden" name="mode" value="signup">
+      <label>Full name<input type="text" name="name" required placeholder="Jamie Rivera"></label>
+      <label>Email<input type="email" name="email" required placeholder="you@email.com"></label>
+      <label>Password<input type="password" name="password" required placeholder="At least 8 characters"></label>
+      <fieldset class="card-fieldset">
+        <legend>Link a card <small>(simulated — never charged)</small></legend>
+        <label>Card number<input type="text" name="card_number" placeholder="4242 4242 4242 4242" maxlength="19"></label>
+        <div class="two-col">
+          <label>Expiry<input type="text" name="card_exp" placeholder="MM/YY"></label>
+          <label>CVC<input type="text" name="card_cvc" placeholder="123" maxlength="4"></label>
+        </div>
+      </fieldset>
+      <button class="btn btn-primary btn-lg full" type="submit">Create my Kettle account</button>
+    </form>
+    {% else %}
+    <form method="post" class="form">
+      <input type="hidden" name="mode" value="signin">
+      <label>Email<input type="email" name="email" required placeholder="you@email.com"></label>
+      <label>Password<input type="password" name="password" required placeholder="Your password"></label>
+      <button class="btn btn-primary btn-lg full" type="submit">Sign in</button>
+    </form>
+    {% endif %}
+
+    <div class="divider"><span>or</span></div>
+    <form method="post">
+      <input type="hidden" name="mode" value="google">
+      <button class="btn btn-outline btn-lg full" type="submit">Continue with Google</button>
+    </form>
+
+    <p class="fine">Demo accounts you can sign into: <code>alex@demo.kettle</code>, <code>sam@demo.kettle</code>,
+      <code>jordan@demo.kettle</code> — password <code>demo1234</code> for all three.</p>
+  </div>
+</section>
+{% endblock %}

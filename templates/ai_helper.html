@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Kettle AI — The Kettle{% endblock %}
+{% block content %}
+<h1>Kettle AI budget helper</h1>
+
+{% if current_user["subscription_status"] in ("trial", "active") %}
+
+  <section class="panel ai-status">
+    {% if current_user["subscription_status"] == "trial" %}
+      <span class="pill">FREE TRIAL</span>
+      <p>Your trial runs until <strong>{{ current_user["trial_ends_at"] }}</strong>. After that you'll be charged
+        <strong>QR {{ "%.2f"|format(price) }}</strong> automatically, once a month.</p>
+    {% else %}
+      <span class="pill">PREMIUM</span>
+      <p>You're subscribed. Next charge of <strong>QR {{ "%.2f"|format(price) }}</strong> is on
+        <strong>{{ current_user["next_billing_date"] }}</strong>.</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('cancel_trial') }}" onsubmit="return confirm('Cancel your Kettle AI subscription?');">
+      <button class="btn btn-ghost btn-sm" type="submit">Cancel subscription</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h3>Your insights</h3>
+    <ul class="insight-list">
+      {% for line in insights %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+  </section>
+
+  {% if grocery_rows %}
+  <section class="panel">
+    <div class="row-between">
+      <h3>This week's grocery run</h3>
+      <span class="pill status-ok">Projected saving QR {{ "%.2f"|format(grocery_monthly) }}/mo</span>
+    </div>
+    <p class="sub">Based on a typical QR 300 weekly basket, switching stores could save you this much this week.</p>
+    <table class="member-table">
+      <thead><tr><th>Store</th><th>Area</th><th>Save this week</th></tr></thead>
+      <tbody>
+        {% for g in grocery_rows %}
+        <tr>
+          <td>{{ g["name"] }}</td>
+          <td>{{ g["area"] }}</td>
+          <td class="status-ok">QR {{ "%.2f"|format(g["save_qr"]) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  {% if cheap_eats %}
+  <section class="panel">
+    <h3>Cheap eats for your trip</h3>
+    <p class="sub">You're in an active trip kettle &mdash; here are the most affordable partner spots.</p>
+    <div class="restaurant-grid">
+      {% for r in cheap_eats %}
+      <div class="restaurant-card">
+        <div class="restaurant-photo" style="background: {{ r.gradient }}">
+          <span class="restaurant-emoji">{{ r.emoji }}</span>
+          <span class="discount-badge">{{ r.discount }}% off</span>
+        </div>
+        <div class="restaurant-body">
+          <div class="row-between">
+            <strong>{{ r.name }}</strong>
+            <span class="pill">~QR {{ r.avg_price_qr }}</span>
+          </div>
+          <p class="restaurant-area">{{ r.area }}, Qatar</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="panel" id="perks">
+    <h3>Your perks</h3>
+    <ul class="perk-list">
+      {% for perk in perks %}<li>{{ perk }}</li>{% endfor %}
+    </ul>
+  </section>
+
+{% elif current_user["subscription_status"] == "past_due" %}
+
+  <section class="panel warn">
+    <h3>Subscription paused</h3>
+    <p>Your last Kettle AI charge of QR {{ "%.2f"|format(price) }} couldn't go through &mdash; your card balance was
+      too low. Top up your card, then restart below.</p>
+    <form method="post" action="{{ url_for('start_trial') }}">
+      <button class="btn btn-primary btn-sm" type="submit">Restart Kettle AI</button>
+    </form>
+  </section>
+
+{% else %}
+
+  <section class="hero" style="padding:16px 0 32px;">
+    <div class="hero-copy" style="flex:1 1 380px;">
+      <h2 style="font-size:1.6rem;margin-top:0;">Budget insights that watch your kettles for you.</h2>
+      <p class="sub">Kettle AI looks across every kettle you're in and flags what's about to get expensive, who to pay
+        first, and where you're overspending &mdash; before it becomes a fight.</p>
+      <form method="post" action="{{ url_for('start_trial') }}">
+        <button class="btn btn-primary btn-lg" type="submit">Try it free for {{ trial_days }} days</button>
+      </form>
+      <p class="hero-fine">Free for {{ trial_days }} days, then QR {{ "%.2f"|format(price) }}/month. Cancel anytime
+        before the trial ends and you won't be charged.</p>
+      {% if current_user["subscription_status"] == "canceled" %}
+      <p class="hero-fine">You previously canceled Kettle AI &mdash; starting again begins a brand new trial in this demo.</p>
+      {% endif %}
+    </div>
+    <div class="hero-card">
+      <div class="mock-card">
+        <div class="mock-card-row"><span>Kettle AI</span><span class="pill">preview</span></div>
+        <div class="mock-line"><span>Biggest open balance</span><span>Cabo Trip</span></div>
+        <div class="mock-line"><span>Spend pace</span><span>on track</span></div>
+        <div class="mock-line"><span>Card balance</span><span>healthy</span></div>
+        <div class="mock-total"><span>Try free</span><span>{{ trial_days }} days</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="perks">
+    <h3>What you get</h3>
+    <ul class="perk-list">
+      {% for perk in perks %}<li>{{ perk }}</li>{% endfor %}
+    </ul>
+  </section>
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}{{ kettle["name"] }} — The Kettle{% endblock %}
+{% block content %}
+<div class="row-between">
+  <h1>{{ kettle["name"] }} <span class="pill">{{ kettle["type"] }}</span></h1>
+  <a class="btn btn-primary btn-sm" href="{{ url_for('add_member', kettle_id=kettle['id']) }}">+ Add member</a>
+</div>
+
+{% if kettle["type"] == "trip" %}
+<p class="sub">{{ kettle["start_date"] }} &rarr; {{ kettle["end_date"] }} &middot; pool QR {{ "%.2f"|format(kettle["total_amount"] or 0) }}, prorated per day</p>
+{% endif %}
+
+<section class="panel">
+  <div class="row-between">
+    <h3>Your balance</h3>
+  </div>
+  <div class="my-balance {{ 'positive' if my_owed > 0 else '' }}">
+    {% if my_owed > 0 %}You owe QR {{ "%.2f"|format(my_owed) }}{% elif my_owed < 0 %}You're owed QR {{ "%.2f"|format(-my_owed) }}{% else %}You're settled up{% endif %}
+  </div>
+  {% if my_owed > 0 %}
+  <form method="post" action="{{ url_for('pay', kettle_id=kettle['id']) }}" class="inline-form">
+    <input type="number" step="0.01" min="0.01" max="{{ my_owed }}" name="amount" value="{{ my_owed }}" required>
+    <button class="btn btn-primary btn-sm" type="submit">Pay into kettle</button>
+  </form>
+  <form method="post" action="{{ url_for('pay_by_eom', kettle_id=kettle['id']) }}" class="inline-form">
+    {% set me = members_view|selectattr("is_me")|first %}
+    <button class="btn {{ 'btn-outline' if not me.eom else 'btn-ghost' }} btn-sm" type="submit">
+      {{ "Cancel pay-by-end-of-month" if me.eom else "Commit: pay by end of month" }}
+    </button>
+  </form>
+  {% endif %}
+  {% set me = members_view|selectattr("is_me")|first %}
+  {% if me.member["status"] == "leave_pending" %}
+  <p class="sub">You're settled up and asked to leave &mdash; waiting on your landlord to approve your exit.</p>
+  {% elif me.member["status"] == "leaving" %}
+  <p class="sub">You've asked to leave &mdash; you'll stay listed and liable until your balance clears.</p>
+  {% else %}
+  <form method="post" action="{{ url_for('leave_kettle', kettle_id=kettle['id']) }}" class="inline-form" onsubmit="return confirm('Leave this kettle?');">
+    <button class="btn btn-ghost btn-sm" type="submit">Leave kettle</button>
+  </form>
+  {% endif %}
+</section>
+
+{% if kettle["type"] == "household" %}
+<section class="panel">
+  <h3>Monthly charges</h3>
+  <form method="post" action="{{ url_for('update_charges', kettle_id=kettle['id']) }}" class="form charges-form">
+    {% for cat in categories %}
+    <label>{{ cat|capitalize }}<input type="number" step="0.01" min="0" name="{{ cat }}" value="{{ charges[cat] }}"></label>
+    {% endfor %}
+    <button class="btn btn-outline btn-sm" type="submit">Update &amp; notify everyone</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h3>Landlord</h3>
+  {% if landlord %}
+  <p class="sub">{{ landlord["name"] }} ({{ landlord["email"] }}) can see payment status only — never individual
+    charges or purchases.</p>
+  <form method="post" action="{{ url_for('remove_landlord', kettle_id=kettle['id']) }}" class="inline-form" onsubmit="return confirm('Remove the landlord from this kettle?');">
+    <button class="btn btn-ghost btn-sm" type="submit">Remove landlord</button>
+  </form>
+  {% else %}
+  <p class="sub">No landlord linked yet. Add one and they'll get a payment-status-only view — no line items, no
+    purchase history.</p>
+  {% endif %}
+  <form method="post" action="{{ url_for('assign_landlord', kettle_id=kettle['id']) }}" class="inline-form">
+    <input type="email" name="landlord_email" placeholder="landlord@email.com" required>
+    <button class="btn btn-outline btn-sm" type="submit">{{ "Change landlord" if landlord else "Add landlord" }}</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h3>Members</h3>
+  <table class="member-table">
+    <thead><tr><th>Member</th><th>Share</th><th>Paid</th><th>Owes</th><th></th></tr></thead>
+    <tbody>
+    {% for row in members_view %}
+    <tr class="{{ 'leaving-row' if row.member['status'] in ('leaving', 'leave_pending') else '' }}">
+      <td>
+        {{ row.member["name"] }}{% if row.is_me %} <em>(you)</em>{% endif %}
+        {% if row.member["status"] == "leaving" %}<span class="pill warn-pill">leaving — still liable</span>{% endif %}
+        {% if row.member["status"] == "leave_pending" %}<span class="pill warn-pill">awaiting landlord approval to leave</span>{% endif %}
+        {% if row.eom %}<span class="pill">pay by EOM</span>{% endif %}
+      </td>
+      <td>QR {{ "%.2f"|format(row.balance.share) }}</td>
+      <td>QR {{ "%.2f"|format(row.balance.paid) }}</td>
+      <td class="{{ 'positive' if row.balance.owed > 0 else '' }}">
+        {% if row.balance.owed > 0 %}QR {{ "%.2f"|format(row.balance.owed) }}{% elif row.balance.owed < 0 %}credit QR {{ "%.2f"|format(-row.balance.owed) }}{% else %}QR 0.00{% endif %}
+      </td>
+      <td class="actions">
+        {% if not row.is_me and row.balance.owed > 0 %}
+          <form method="post" action="{{ url_for('nudge', kettle_id=kettle['id'], target_id=row.member['user_id']) }}" class="inline-form">
+            <select name="sound_preset" style="width:110px" title="Nudge sound">
+              <option value="">No sound</option>
+              <option value="chime">Gentle chime</option>
+              <option value="whistle">Kettle whistle</option>
+              <option value="sigh">Passive-aggressive sigh</option>
+            </select>
+            <button class="btn btn-sm btn-outline" type="submit" {% if row.eom %}disabled title="Pay-by-EOM active"{% endif %}>Nudge anonymously</button>
+          </form>
+          {% if custom_nudges %}
+          <form method="post" action="{{ url_for('nudge', kettle_id=kettle['id'], target_id=row.member['user_id']) }}" class="inline-form">
+            <select name="nudge_id" style="width:150px">
+              {% for n in custom_nudges %}
+              <option value="{{ n['id'] }}">QR {{ "%.0f"|format(n["price_qr"]) }} &mdash; {% if n["audio_data"] %}&#127925; {% endif %}{{ n["message"][:22] }}{% if n["message"]|length > 22 %}…{% endif %}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-sm btn-outline" type="submit" {% if row.eom %}disabled title="Pay-by-EOM active"{% endif %}>Send paid nudge</button>
+          </form>
+          {% endif %}
+          <form method="post" action="{{ url_for('cover', kettle_id=kettle['id']) }}" class="inline-form">
+            <input type="hidden" name="debtor_id" value="{{ row.member['user_id'] }}">
+            <input type="number" step="0.01" min="0.01" max="{{ row.balance.owed }}" name="amount" placeholder="QR" style="width:70px">
+            <button class="btn btn-sm btn-ghost" type="submit">Cover</button>
+          </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — The Kettle{% endblock %}
+{% block content %}
+<h1>Hey {{ current_user["name"].split(" ")[0] }}.</h1>
+
+<section class="stat-row">
+  <div class="stat-card">
+    <span class="stat-label">Card balance</span>
+    <span class="stat-value">QR {{ "%.2f"|format(current_user["card_balance"]) }}</span>
+    <span class="stat-sub">Card ending {{ current_user["card_last4"] }}</span>
+  </div>
+  <div class="stat-card owed">
+    <span class="stat-label">You owe</span>
+    <span class="stat-value">QR {{ "%.2f"|format(totals.total_owed) }}</span>
+    <span class="stat-sub">across all kettles</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-label">You've spent</span>
+    <span class="stat-value">QR {{ "%.2f"|format(totals.total_spent) }}</span>
+    <span class="stat-sub">paid into kettles &amp; covers</span>
+  </div>
+</section>
+
+<section class="panel ai-banner">
+  {% if current_user["subscription_status"] == "trial" %}
+    <div>
+      <h3>Kettle AI &mdash; free trial active</h3>
+      <p class="sub">Trial ends {{ current_user["trial_ends_at"] }}, then QR 15.00/month.</p>
+    </div>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('ai_helper') }}">View insights</a>
+  {% elif current_user["subscription_status"] == "active" %}
+    <div>
+      <h3>Kettle AI &mdash; premium active</h3>
+      <p class="sub">Next charge QR 15.00 on {{ current_user["next_billing_date"] }}.</p>
+    </div>
+    <a class="btn btn-outline btn-sm" href="{{ url_for('ai_helper') }}">View insights</a>
+  {% else %}
+    <div>
+      <h3>Try Kettle AI free for 14 days</h3>
+      <p class="sub">Personalized budget insights, then QR 15.00/month. Cancel anytime.</p>
+    </div>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('ai_helper') }}">Try it free</a>
+  {% endif %}
+</section>
+
+{% if totals.debts_owed %}
+<section class="panel warn">
+  <h3>Personal debts you owe</h3>
+  {% for d in totals.debts_owed %}
+  <div class="row-between">
+    <span>You owe <strong>{{ d["payer_name"] }}</strong> for covering you in {{ d["kettle_name"] }}</span>
+    <span class="amount">QR {{ "%.2f"|format(d["amount"]) }}</span>
+    <form method="post" action="{{ url_for('settle_debt', cover_id=d['id']) }}">
+      <button class="btn btn-sm btn-primary" type="submit">Settle now</button>
+    </form>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if totals.debts_to_me %}
+<section class="panel">
+  <h3>Owed to you</h3>
+  {% for d in totals.debts_to_me %}
+  <div class="row-between">
+    <span><strong>{{ d["debtor_name"] }}</strong> owes you from {{ d["kettle_name"] }}</span>
+    <span class="amount">QR {{ "%.2f"|format(d["amount"]) }}</span>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="row-between">
+    <h3>Your kettles</h3>
+    <a class="btn btn-sm btn-primary" href="{{ url_for('new_kettle') }}">+ New kettle</a>
+  </div>
+  {% if not totals.kettles %}
+  <p class="empty">No kettles yet. Start one for your apartment, house, or next trip.</p>
+  {% endif %}
+  <div class="kettle-grid">
+    {% for k in totals.kettles %}
+    <a class="kettle-card" href="{{ url_for('kettle_detail', kettle_id=k.kettle['id']) }}">
+      <div class="row-between">
+        <strong>{{ k.kettle["name"] }}</strong>
+        <span class="pill">{{ k.kettle["type"] }}</span>
+      </div>
+      <div class="kettle-owed {{ 'positive' if k.owed > 0 else '' }}">
+        {% if k.owed > 0 %}You owe QR {{ "%.2f"|format(k.owed) }}{% elif k.owed < 0 %}You're owed QR {{ "%.2f"|format(-k.owed) }}{% else %}You're settled up{% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+{% if notifications %}
+<section class="panel">
+  <div class="row-between">
+    <h3>Recent activity</h3>
+    <a href="{{ url_for('notifications') }}">See all</a>
+  </div>
+  <ul class="notif-list">
+    {% for n in notifications %}
+    <li class="{{ 'unread' if not n['read'] else '' }}">{{ n["message"] }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endblock %}

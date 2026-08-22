@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Nearby deals — The Kettle{% endblock %}
+{% block content %}
+<h1>Nearby deals</h1>
+<p class="sub">Kettle AI finds the most affordable partner restaurants and grocers around you &mdash; sort by
+  distance, price, cuisine, or rating.</p>
+
+<section class="panel" id="location-banner">
+  <h3>&#128205; Enable location</h3>
+  <p>Allow location access and we'll sort every spot below by how close it is to you right now. You can still
+    browse and sort by price or rating without it.</p>
+  <button class="btn btn-primary btn-sm" type="button" id="allow-location-btn">Allow location</button>
+  <p class="fine" id="location-status"></p>
+</section>
+
+{% if unlocked %}
+<section class="panel ai-banner">
+  <div>
+    <h3>2&times; loyalty points here</h3>
+    <p class="sub">Your Kettle AI subscription doubles the points you earn on every redemption below.</p>
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <div class="filter-bar">
+    <label>Type
+      <select id="filter-select"></select>
+    </label>
+    <label>Sort by
+      <select id="sort-select">
+        <option value="rating">Highest rated</option>
+        <option value="price">Most affordable</option>
+        <option value="discount">Biggest discount</option>
+        <option value="distance">Closest to me</option>
+      </select>
+    </label>
+  </div>
+</section>
+
+<div class="restaurant-grid" id="results"></div>
+
+<p class="fine" style="margin-top:20px;">Demo content &mdash; these restaurants, grocers, locations, and Kettle
+  partnerships are illustrative examples built for this prototype, not real collaborations. Distance is calculated
+  from location your browser reports, only in this session, and is never stored.</p>
+
+<script>
+const PLACES = {{ places|tojson }};
+let userCoords = null;
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function categoryOf(p) { return p.kind === "grocery" ? "Groceries" : p.cuisine; }
+
+function populateFilters() {
+  const select = document.getElementById("filter-select");
+  const cats = Array.from(new Set(PLACES.map(categoryOf))).sort();
+  const options = ["All"].concat(cats);
+  select.innerHTML = options.map(c => `<option value="${c}">${c}</option>`).join("");
+}
+
+function distanceLabel(p) {
+  if (!userCoords || p._distance == null) return "";
+  return p._distance < 1 ? Math.round(p._distance * 1000) + " m away" : p._distance.toFixed(1) + " km away";
+}
+
+function cardHtml(p) {
+  const dLabel = distanceLabel(p);
+  const redeem = p.code
+    ? `<div class="redeem-box"><span class="redeem-label">Show this at checkout</span><code class="redeem-code">${p.code}</code></div>`
+    : `<div class="redeem-box locked"><span class="redeem-label">&#128274; Redeem code locked</span></div>`;
+  return `
+    <div class="restaurant-card">
+      <div class="restaurant-photo" style="background: ${p.gradient}">
+        <span class="restaurant-emoji">${p.emoji}</span>
+        <span class="discount-badge">${p.discount}% off</span>
+        ${dLabel ? `<span class="distance-badge">${dLabel}</span>` : ""}
+      </div>
+      <div class="restaurant-body">
+        <div class="row-between">
+          <strong>${p.name}</strong>
+          <span class="pill">${categoryOf(p)}</span>
+        </div>
+        <p class="restaurant-area">${p.area}, Qatar &middot; &#9733; ${p.rating.toFixed(1)} &middot; ~QR ${p.avg_price_qr}</p>
+        <p class="restaurant-blurb">${p.blurb}</p>
+        ${redeem}
+      </div>
+    </div>`;
+}
+
+function render() {
+  let list = PLACES.slice();
+  const filter = document.getElementById("filter-select").value;
+  if (filter && filter !== "All") {
+    list = list.filter(p => categoryOf(p) === filter);
+  }
+  if (userCoords) {
+    list.forEach(p => { p._distance = haversineKm(userCoords.lat, userCoords.lng, p.lat, p.lng); });
+  }
+  const sort = document.getElementById("sort-select").value;
+  if (sort === "distance" && userCoords) {
+    list.sort((a, b) => a._distance - b._distance);
+  } else if (sort === "price") {
+    list.sort((a, b) => a.avg_price_qr - b.avg_price_qr);
+  } else if (sort === "discount") {
+    list.sort((a, b) => b.discount - a.discount);
+  } else {
+    list.sort((a, b) => b.rating - a.rating);
+  }
+  document.getElementById("results").innerHTML = list.map(cardHtml).join("");
+}
+
+document.getElementById("allow-location-btn").addEventListener("click", function () {
+  const status = document.getElementById("location-status");
+  if (!navigator.geolocation) {
+    status.textContent = "Location isn't available in this browser.";
+    return;
+  }
+  status.textContent = "Requesting location...";
+  navigator.geolocation.getCurrentPosition(
+    function (pos) {
+      userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      document.getElementById("location-banner").style.display = "none";
+      document.getElementById("sort-select").value = "distance";
+      render();
+    },
+    function () {
+      status.textContent = "Location access denied — you can still sort by price, rating, or discount.";
+    }
+  );
+});
+
+document.getElementById("filter-select").addEventListener("change", render);
+document.getElementById("sort-select").addEventListener("change", render);
+
+populateFilters();
+render();
+</script>
+{% endblock %}

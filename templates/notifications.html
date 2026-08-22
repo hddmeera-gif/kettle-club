@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Notifications — The Kettle{% endblock %}
+{% block content %}
+<h1>Notifications</h1>
+<section class="panel">
+  {% if not notifications %}
+  <p class="empty">Nothing yet. When splits change or someone nudges you, it'll show up here.</p>
+  {% endif %}
+  <ul class="notif-list">
+    {% for n in notifications %}
+    <li>
+      <span>
+        {{ n["message"] }}
+        {% if n["custom_nudge_id"] and audio_by_nudge.get(n["custom_nudge_id"]) %}
+        <button class="btn btn-sm btn-ghost" type="button" onclick="playRecordedAudio('{{ audio_by_nudge[n['custom_nudge_id']] }}')">&#9654; Play</button>
+        {% elif n["sound_preset"] %}
+        <button class="btn btn-sm btn-ghost" type="button" onclick="playKettleSound('{{ n['sound_preset'] }}')">&#9654; Play {{ n["sound_preset"] }}</button>
+        {% endif %}
+      </span>
+      <span class="notif-time">{{ n["created_at"][:16].replace("T", " ") }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}

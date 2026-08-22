@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Table mode — The Kettle{% endblock %}
+{% block content %}
+<h1>Table mode</h1>
+<p class="sub">Scan the table's QR to sign in, pick your own order at member pricing, and settle up automatically
+  &mdash; nobody picks up the whole bill.</p>
+
+{% if open_tables %}
+<section class="panel">
+  <h3>Your open tables</h3>
+  <div class="kettle-grid">
+    {% for t in open_tables %}
+    <a class="kettle-card" href="{{ url_for('table_detail', table_id=t['id']) }}">
+      <strong>{{ t["label"] }}</strong>
+      <p class="sub" style="margin:4px 0 0;">{{ t["restaurant_id"].replace("-", " ")|title }}</p>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if other_open %}
+<section class="panel">
+  <h3>Scan in to a table</h3>
+  <p class="sub">Someone already opened these &mdash; join the one you're sitting at.</p>
+  <div class="kettle-grid">
+    {% for t in other_open %}
+    <div class="kettle-card">
+      <strong>{{ t["label"] }}</strong>
+      <p class="sub" style="margin:4px 0 10px;">Opened by {{ t["host_name"] }}</p>
+      <form method="post" action="{{ url_for('table_join', table_id=t['id']) }}">
+        <button class="btn btn-sm btn-primary" type="submit">Scan in &amp; join</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h3>Open a new table</h3>
+  <form method="post" action="{{ url_for('table_new') }}" class="form">
+    <label>Table label<input type="text" name="label" placeholder="e.g. Table 4" required></label>
+    <label>Restaurant
+      <select name="restaurant_id" required>
+        {% for r in restaurants %}
+        <option value="{{ r['id'] }}">{{ r["name"] }} &mdash; {{ r["area"] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn btn-primary btn-lg full" type="submit">Open table &amp; generate QR</button>
+  </form>
+</section>
+{% endblock %}

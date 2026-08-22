@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}The Kettle{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  {% if current_user %}
+  <details class="kettle-menu">
+    <summary class="brand-trigger"><span class="brand-mark">&#9749;</span> The Kettle</summary>
+    <div class="dropdown-panel">
+      <a href="{{ url_for('dashboard') }}">Dashboard</a>
+      <div class="dropdown-label">Your kettles</div>
+      {% for k in my_kettles %}
+      <a class="dropdown-kettle" href="{{ url_for('kettle_detail', kettle_id=k['id']) }}">{{ k["name"] }}</a>
+      {% else %}
+      <span class="dropdown-empty">No kettles yet</span>
+      {% endfor %}
+      <a class="dropdown-add" href="{{ url_for('new_kettle') }}">+ New kettle</a>
+      {% if is_landlord %}
+      <div class="dropdown-divider"></div>
+      <a href="{{ url_for('landlord_dashboard') }}">Landlord mode</a>
+      {% endif %}
+      <div class="dropdown-divider"></div>
+      <a href="{{ url_for('nearby') }}">Nearby deals</a>
+      <a href="{{ url_for('restaurant_discounts') }}">Restaurant discounts</a>
+      <a href="{{ url_for('ai_helper') }}">AI budget helper{% if current_user["subscription_status"] in ("trial","active") %}<span class="badge">PRO</span>{% endif %}</a>
+      <div class="dropdown-divider"></div>
+      <a href="{{ url_for('table_index') }}">Table mode</a>
+      <a href="{{ url_for('nudge_market') }}">Nudge marketplace</a>
+    </div>
+  </details>
+  <nav class="topnav">
+    <a class="bell" href="{{ url_for('notifications') }}">Notifications{% if unread_count %}<span class="badge">{{ unread_count }}</span>{% endif %}</a>
+    <a href="{{ url_for('logout') }}">Sign out</a>
+  </nav>
+  {% else %}
+  <a class="brand" href="{{ url_for('landing') }}">
+    <span class="brand-mark">&#9749;</span> The Kettle
+  </a>
+  {% endif %}
+</header>
+
+<main class="wrap">
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash-stack">
+        {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+
+<script>
+function playKettleSound(type) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = ctx.currentTime;
+    function tone(freq, start, dur, gain, wave, sweepTo) {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = wave || "sine";
+      osc.frequency.setValueAtTime(freq, now + start);
+      if (sweepTo) osc.frequency.linearRampToValueAtTime(sweepTo, now + start + dur);
+      g.gain.setValueAtTime(0, now + start);
+      g.gain.linearRampToValueAtTime(gain, now + start + 0.03);
+      g.gain.linearRampToValueAtTime(0, now + start + dur);
+      osc.connect(g).connect(ctx.destination);
+      osc.start(now + start);
+      osc.stop(now + start + dur + 0.05);
+    }
+    if (type === "chime") {
+      tone(880, 0, 0.25, 0.15, "sine");
+      tone(1174, 0.15, 0.3, 0.13, "sine");
+    } else if (type === "whistle") {
+      tone(600, 0, 0.5, 0.12, "sine", 1400);
+    } else if (type === "sigh") {
+      tone(300, 0, 0.6, 0.12, "sawtooth", 140);
+    }
+  } catch (e) { /* audio not available */ }
+}
+
+function playRecordedAudio(base64) {
+  const audio = new Audio(base64);
+  audio.play().catch(function () {});
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Restaurant discounts — The Kettle{% endblock %}
+{% block content %}
+<h1>Restaurant &amp; café discounts</h1>
+<p class="sub">Kettle AI members get a standing discount at partner spots across Qatar &mdash; show the code at the
+  till, no reservation needed.</p>
+
+{% if not unlocked %}
+<section class="panel warn">
+  <h3>Unlock these discounts</h3>
+  <p>Start your free {{ 14 }}-day Kettle AI trial to reveal your redeem codes below. Browsing the list is free for
+    everyone.</p>
+  <a class="btn btn-primary btn-sm" href="{{ url_for('ai_helper') }}">Try Kettle AI free</a>
+</section>
+{% endif %}
+
+<div class="restaurant-grid">
+  {% for r in partners %}
+  <div class="restaurant-card">
+    <div class="restaurant-photo" style="background: {{ r.gradient }}">
+      <span class="restaurant-emoji">{{ r.emoji }}</span>
+      <span class="discount-badge">{{ r.discount }}% off</span>
+    </div>
+    <div class="restaurant-body">
+      <div class="row-between">
+        <strong>{{ r.name }}</strong>
+        <span class="pill">{{ r.cuisine }}</span>
+      </div>
+      <p class="restaurant-area">{{ r.area }}, Qatar</p>
+      <p class="restaurant-blurb">{{ r.blurb }}</p>
+      {% if unlocked %}
+      <div class="redeem-box">
+        <span class="redeem-label">Show this at checkout</span>
+        <code class="redeem-code">{{ codes[r.id] }}</code>
+      </div>
+      {% else %}
+      <div class="redeem-box locked">
+        <span class="redeem-label">&#128274; Redeem code locked</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<p class="fine" style="margin-top:20px;">Demo content &mdash; these restaurants, locations, and Kettle partnerships
+  are illustrative examples built for this prototype, not real collaborations.</p>
+{% endblock %}

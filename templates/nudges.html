@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Nudge marketplace — The Kettle{% endblock %}
+{% block content %}
+<h1>Nudge marketplace</h1>
+<p class="sub">Write your own nudge — or record one — publish it for QR {{ "%.2f"|format(price) }}, and earn QR
+  {{ "%.2f"|format(price) }} every time someone else sends it. Every nudge stays anonymous to whoever receives it.</p>
+
+<section class="panel">
+  <h3>Free preset sounds</h3>
+  <p class="sub">Anyone can attach one of these to a free anonymous nudge, no charge.</p>
+  <div class="inline-form">
+    <button class="btn btn-sm btn-outline" type="button" onclick="playKettleSound('chime')">&#9654; Gentle chime</button>
+    <button class="btn btn-sm btn-outline" type="button" onclick="playKettleSound('whistle')">&#9654; Kettle whistle</button>
+    <button class="btn btn-sm btn-outline" type="button" onclick="playKettleSound('sigh')">&#9654; Passive-aggressive sigh</button>
+  </div>
+</section>
+
+<section class="panel">
+  <h3>Publish a nudge</h3>
+  <form method="post" action="{{ url_for('create_nudge') }}" class="form" id="create-nudge-form">
+    <label>Your message<textarea name="message" maxlength="140" rows="2" placeholder="e.g. The kettle doesn't forget. Pay up. ☕" required style="font-family:inherit;font-size:0.95rem;padding:10px 12px;border-radius:10px;border:1.5px solid var(--line);resize:vertical;"></textarea></label>
+
+    <div class="card-fieldset">
+      <legend>Optional: record your own audio nudge</legend>
+      <input type="hidden" name="audio_data" id="audio_data_field">
+      <div class="inline-form">
+        <button class="btn btn-sm btn-outline" type="button" id="record-btn">&#127908; Record (3s)</button>
+        <span class="fine" id="record-status">No recording yet.</span>
+        <button class="btn btn-sm btn-ghost" type="button" id="preview-btn" style="display:none">&#9654; Preview</button>
+      </div>
+    </div>
+
+    <p class="fine">Costs QR {{ "%.2f"|format(price) }} to publish, refunded to you QR {{ "%.2f"|format(price) }} at a
+      time whenever someone sends it.</p>
+    <button class="btn btn-primary btn-sm" type="submit">Publish for QR {{ "%.2f"|format(price) }}</button>
+  </form>
+</section>
+
+<section class="panel">
+  <h3>Browse the marketplace</h3>
+  {% if not listings %}
+  <p class="empty">No custom nudges yet — be the first to publish one.</p>
+  {% endif %}
+  <div class="nudge-grid">
+    {% for n in listings %}
+    <div class="nudge-card">
+      <p class="nudge-message">&ldquo;{{ n["message"] }}&rdquo;{% if n["audio_data"] %} &#127925;{% endif %}</p>
+      <div class="row-between">
+        <span class="fine">by {{ n["creator_name"] }} &middot; used {{ n["times_used"] }}&times;</span>
+        <span class="pill">QR {{ "%.2f"|format(n["price_qr"]) }}</span>
+      </div>
+      {% if n["audio_data"] %}
+      <button class="btn btn-sm btn-ghost" type="button" onclick="playRecordedAudio('{{ n['audio_data'] }}')">&#9654; Play recording</button>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<p class="fine">To send a paid nudge, open a kettle where someone owes money and pick it from the nudge menu next to
+  their name.</p>
+
+<script>
+(function () {
+  const btn = document.getElementById("record-btn");
+  const status = document.getElementById("record-status");
+  const previewBtn = document.getElementById("preview-btn");
+  const field = document.getElementById("audio_data_field");
+  let recordedUrl = null;
+
+  if (!btn) return;
+
+  btn.addEventListener("click", function () {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      status.textContent = "Recording isn't available in this browser.";
+      return;
+    }
+    status.textContent = "Requesting microphone...";
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+      recorder.ondataavailable = function (e) { chunks.push(e.data); };
+      recorder.onstop = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const reader = new FileReader();
+        reader.onloadend = function () {
+          field.value = reader.result;
+          recordedUrl = reader.result;
+          status.textContent = "Recording ready (" + Math.round(blob.size / 1024) + " KB).";
+          previewBtn.style.display = "inline-block";
+        };
+        reader.readAsDataURL(blob);
+      };
+      recorder.start();
+      status.textContent = "Recording...";
+      setTimeout(function () { recorder.stop(); }, 3000);
+    }).catch(function () {
+      status.textContent = "Microphone access denied — you can still publish a text-only nudge.";
+    });
+  });
+
+  previewBtn.addEventListener("click", function () {
+    if (recordedUrl) playRecordedAudio(recordedUrl);
+  });
+})();
+</script>
+{% endblock %}

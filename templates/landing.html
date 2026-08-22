@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}The Kettle — split money, not friendships{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero-copy">
+    <h1>Everyone chips into <span class="accent">the kettle.</span><br>Nobody has to be the messenger.</h1>
+    <p class="sub">Roommates, trips, friend groups — The Kettle tracks who owes what, updates the split the moment
+      someone joins or leaves, and nudges people anonymously so you never have to.</p>
+    <a class="btn btn-primary btn-lg" href="{{ url_for('auth') }}">Start your Kettle</a>
+    <p class="hero-fine">Free to use. Card details are simulated in this demo — nothing is ever charged.</p>
+  </div>
+  <div class="hero-card">
+    <div class="mock-card">
+      <div class="mock-card-row"><span>Brooklyn Apartment</span><span class="pill">household</span></div>
+      <div class="mock-line"><span>Rent</span><span>QR 650 <small>your share</small></span></div>
+      <div class="mock-line"><span>Utilities</span><span>QR 42</span></div>
+      <div class="mock-line"><span>Groceries</span><span>QR 88</span></div>
+      <div class="mock-total"><span>You owe</span><span>QR 780.00</span></div>
+      <button class="btn btn-ghost btn-sm" disabled>Nudge Jordan &rarr;</button>
+    </div>
+  </div>
+</section>
+
+<section class="features">
+  <div class="feature"><h3>Anonymous nudges</h3><p>No more awkward "hey did you forget rent" texts. One tap, no name attached.</p></div>
+  <div class="feature"><h3>Splits update themselves</h3><p>New roommate or a late trip joiner — everyone sees the change coming, and what changed, before it's final.</p></div>
+  <div class="feature"><h3>Per-day trip proration</h3><p>Late joiners only owe from the day they actually joined the trip.</p></div>
+  <div class="feature"><h3>Pay by end of month</h3><p>Commit to a date and nudges go quiet — no pressure while you're still within your word.</p></div>
+  <div class="feature"><h3>Cover for a friend</h3><p>Short on cash? Someone can cover you, and it shows clearly as money you owe them.</p></div>
+  <div class="feature"><h3>Leaving isn't quiet</h3><p>Exiting a household kettle keeps you listed and liable until your balance hits zero.</p></div>
+</section>
+
+<section class="cta-band">
+  <div>
+    <h2>Ready to stop being the bill collector?</h2>
+    <p>Start a kettle for your apartment, your trip, or your group in under a minute.</p>
+  </div>
+  <a class="btn btn-primary btn-lg" href="{{ url_for('auth') }}">Start your Kettle</a>
+</section>
+{% endblock %}

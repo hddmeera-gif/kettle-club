@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}{{ table["label"] }} — The Kettle{% endblock %}
+{% block content %}
+<div class="row-between">
+  <h1>{{ table["label"] }} <span class="pill">{{ table["status"] }}</span></h1>
+</div>
+<p class="sub">{{ partner["name"] if partner else table["restaurant_id"] }} &middot; {{ partner["area"] if partner else "" }}, Qatar</p>
+
+{% if not my_membership and table["status"] == "open" %}
+<section class="panel">
+  <h3>&#128241; Scan the table QR</h3>
+  <p>You're viewing this table but haven't joined yet &mdash; this link is what the table's QR code points to.</p>
+  <form method="post" action="{{ url_for('table_join', table_id=table['id']) }}">
+    <button class="btn btn-primary btn-sm" type="submit">Sign in &amp; join this table</button>
+  </form>
+</section>
+{% endif %}
+
+{% if my_membership %}
+<section class="panel">
+  <h3>Your status at this table</h3>
+  <p class="fine">Ordering timestamps who's actually here — late arrivals never get billed for shared items ordered
+    before they sat down, and once you're marked left early, the same applies going forward.</p>
+  <div class="inline-form">
+    {% for value, label in status_labels.items() %}
+    <form method="post" action="{{ url_for('table_status', table_id=table['id']) }}">
+      <input type="hidden" name="status" value="{{ value }}">
+      <button class="btn btn-sm {{ 'btn-primary' if my_membership['status'] == value else 'btn-ghost' }}" type="submit" {% if table["status"] != "open" %}disabled{% endif %}>{{ label }}</button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <h3>Your spending preferences</h3>
+  <form method="post" action="{{ url_for('table_status', table_id=table['id']) }}" class="inline-form">
+    <input type="hidden" name="prefs" value="1">
+    <input type="number" step="1" min="0" name="spending_cap" placeholder="No cap" value="{{ my_membership['spending_cap']|int if my_membership['spending_cap'] else '' }}" style="width:110px" {% if table["status"] != "open" %}disabled{% endif %}>
+    <label class="check-inline"><input type="checkbox" name="exclude_drinks" {% if my_membership['exclude_drinks'] %}checked{% endif %} {% if table["status"] != "open" %}disabled{% endif %}> Exclude drinks &amp; service from my split</label>
+    <button class="btn btn-sm btn-outline" type="submit" {% if table["status"] != "open" %}disabled{% endif %}>Save</button>
+  </form>
+  <p class="fine">If a shared item would push you over your cap, you're dropped from just that split and the rest of
+    the table absorbs it — nobody has to redo the math.</p>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h3>Who's here</h3>
+  <table class="member-table">
+    <thead><tr><th>Diner</th><th>Status</th><th>Total so far</th><th></th></tr></thead>
+    <tbody>
+      {% for m in members %}
+      <tr>
+        <td>
+          {{ m["name"] }}{% if m["user_id"] == table["created_by"] %} <span class="pill">host</span>{% endif %}
+          {% if m["spending_cap"] %}<span class="pill">cap QR {{ "%.0f"|format(m["spending_cap"]) }}</span>{% endif %}
+          {% if m["exclude_drinks"] %}<span class="pill">no drinks/service</span>{% endif %}
+        </td>
+        <td><span class="pill {{ 'warn-pill' if m['status'] != 'dining' else '' }}">{{ status_labels[m["status"]] }}</span></td>
+        <td>QR {{ "%.2f"|format(all_totals.get(m["user_id"], 0)) }}</td>
+        <td class="actions">
+          {% if my_membership and m["user_id"] != my_membership["user_id"] and table["status"] == "open" %}
+          <form method="post" action="{{ url_for('table_cover', table_id=table['id']) }}" class="inline-form">
+            <input type="hidden" name="debtor_id" value="{{ m['user_id'] }}">
+            <input type="number" step="0.01" min="0.01" name="amount" placeholder="QR" style="width:70px">
+            <button class="btn btn-sm btn-ghost" type="submit">Cover</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% if covers_i_owe or covers_owed_to_me %}
+<section class="panel">
+  <h3>Covers at this table</h3>
+  {% for c in covers_i_owe %}
+  <div class="row-between">
+    <span>You owe <strong>{{ c["payer_name"] }}</strong> for covering you here</span>
+    <span class="amount">QR {{ "%.2f"|format(c["amount"]) }}</span>
+    <form method="post" action="{{ url_for('table_settle_cover', table_id=table['id'], cover_id=c['id']) }}">
+      <button class="btn btn-sm btn-primary" type="submit">Settle now</button>
+    </form>
+  </div>
+  {% endfor %}
+  {% for c in covers_owed_to_me %}
+  <div class="row-between">
+    <span><strong>{{ c["debtor_name"] }}</strong> owes you from this table</span>
+    <span class="amount">QR {{ "%.2f"|format(c["amount"]) }}</span>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if my_membership and table["status"] == "open" %}
+<section class="panel">
+  <h3>Menu {% if discount %}<span class="pill status-ok">{{ discount }}% member discount applied</span>{% endif %}</h3>
+  <div class="menu-grid">
+    {% for item in menu %}
+    <form method="post" action="{{ url_for('table_order', table_id=table['id']) }}" class="menu-item">
+      <input type="hidden" name="item_name" value="{{ item['name'] }}">
+      <div class="row-between">
+        <strong>{{ item["name"] }}</strong>
+        <span class="pill">{{ item["category"] }}</span>
+      </div>
+      <div>
+        {% if discount %}<span class="was">QR {{ "%.2f"|format(item["full_price"]) }}</span>{% endif %}
+        QR {{ "%.2f"|format(item["price_qr"]) }}
+      </div>
+      {% if members|length > 1 %}
+      <div class="share-checks">
+        <span class="fine">Share with:</span>
+        {% for m in members if m["user_id"] != my_membership["user_id"] %}
+        <label class="check-inline"><input type="checkbox" name="shared_with" value="{{ m['user_id'] }}"> {{ m["name"] }}</label>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <button class="btn btn-sm btn-outline" type="submit">Add to my order &mdash; charges instantly</button>
+    </form>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <h3>Your order</h3>
+  {% if not my_orders %}
+  <p class="empty">Nothing ordered yet.</p>
+  {% else %}
+  <ul class="notif-list">
+    {% for o in my_orders %}
+    <li>
+      <span>{{ o["item_name"] }} &middot; QR {{ "%.2f"|format(o["price_qr"]) }}{% if o["shared_with"] and o["shared_with"].split(",")|length > 1 %} <span class="fine">(split {{ o["shared_with"].split(",")|length }} ways)</span>{% endif %}</span>
+      <form method="post" action="{{ url_for('table_order_remove', table_id=table['id'], order_id=o['id']) }}">
+        <button class="btn btn-sm btn-ghost" type="submit">Remove &amp; refund</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  <div class="my-balance" style="margin-top:14px;">Your total, charged as you went: QR {{ "%.2f"|format(my_total) }}</div>
+</section>
+
+<section class="panel">
+  <h3>Close out</h3>
+  <p class="sub">Nothing to charge here &mdash; everyone was already billed the moment they ordered. This just marks
+    the table done.</p>
+  <form method="post" action="{{ url_for('table_close', table_id=table['id']) }}" onsubmit="return confirm('Close this table?');">
+    <button class="btn btn-primary btn-sm" type="submit">Close table</button>
+  </form>
+</section>
+{% endif %}
+
+{% if table["status"] == "closed" %}
+<section class="panel">
+  <p class="empty">This table has been closed. Everyone was charged their own share the moment they ordered.</p>
+</section>
+{% endif %}
+{% endblock %}

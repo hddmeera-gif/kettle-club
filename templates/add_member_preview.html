@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Preview — {{ kettle["name"] }}{% endblock %}
+{% block content %}
+<h1>Here's what changes if {{ target["name"] }} joins</h1>
+<p class="sub">Nobody gets surprised after the fact — review the new split, then confirm to notify everyone.</p>
+
+<section class="panel">
+  {% if kettle["type"] == "household" %}
+  <table class="member-table">
+    <thead><tr><th>Member</th>{% for c in categories %}<th>{{ c|capitalize }}</th>{% endfor %}<th>Total</th></tr></thead>
+    <tbody>
+      {% for uid, before in preview.before.items() %}
+      <tr>
+        <td>{{ id_to_name.get(uid, "Member") }}</td>
+        {% for c in categories %}
+        <td><span class="was">QR {{ "%.2f"|format(before.categories[c]) }}</span> &rarr; <span class="now">QR {{ "%.2f"|format(preview.after[uid].categories[c]) }}</span></td>
+        {% endfor %}
+        <td><span class="was">QR {{ "%.2f"|format(before.total) }}</span> &rarr; <span class="now">QR {{ "%.2f"|format(preview.after[uid].total) }}</span></td>
+      </tr>
+      {% endfor %}
+      <tr class="new-row">
+        <td>{{ target["name"] }} <em>(joining)</em></td>
+        {% for c in categories %}<td>QR {{ "%.2f"|format(preview.new_member_share[c]) }}</td>{% endfor %}
+        <td>QR {{ "%.2f"|format(preview.new_member_share.values()|sum) }}</td>
+      </tr>
+    </tbody>
+  </table>
+  {% else %}
+  <table class="member-table">
+    <thead><tr><th>Member</th><th>Before</th><th>After</th></tr></thead>
+    <tbody>
+      {% for uid, before in preview.before.items() %}
+      <tr>
+        <td>{{ id_to_name.get(uid, "Member") }}</td>
+        <td>QR {{ "%.2f"|format(before) }}</td>
+        <td>QR {{ "%.2f"|format(preview.after.get(uid, 0)) }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="new-row">
+        <td>{{ target["name"] }} <em>(joining {{ join_date }})</em></td>
+        <td>&mdash;</td>
+        <td>QR {{ "%.2f"|format(preview.new_member_share.total) }}</td>
+      </tr>
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+
+<form method="post" class="inline-form">
+  <input type="hidden" name="step" value="confirm">
+  <input type="hidden" name="user_id" value="{{ target['id'] }}">
+  <input type="hidden" name="join_date" value="{{ join_date }}">
+  <button class="btn btn-primary btn-lg" type="submit">Confirm &amp; notify everyone</button>
+  <a class="btn btn-ghost btn-lg" href="{{ url_for('add_member', kettle_id=kettle['id']) }}">Cancel</a>
+</form>
+{% endblock %}

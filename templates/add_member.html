@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Add member — {{ kettle["name"] }}{% endblock %}
+{% block content %}
+<h1>Add someone to {{ kettle["name"] }}</h1>
+<section class="panel">
+  {% if not other_users %}
+  <p class="empty">No other Kettle users to add right now. Sign into a demo account
+    (<code>alex@demo.kettle</code> / <code>sam@demo.kettle</code> / <code>jordan@demo.kettle</code>, password
+    <code>demo1234</code>) from another session to see multi-person splits.</p>
+  {% else %}
+  <form method="post" class="form">
+    <input type="hidden" name="step" value="preview">
+    <label>Who's joining?
+      <select name="user_id" required>
+        <option value="" disabled selected>Choose a person</option>
+        {% for u in other_users %}
+        <option value="{{ u['id'] }}">{{ u["name"] }} &mdash; {{ u["email"] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {% if kettle["type"] == "trip" %}
+    <label>Join date<input type="date" name="join_date" value="{{ today }}" min="{{ kettle['start_date'] }}" max="{{ kettle['end_date'] }}"></label>
+    <p class="fine">They'll only be charged for days from this date onward.</p>
+    {% endif %}
+    <button class="btn btn-primary btn-lg full" type="submit">Preview the new split</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

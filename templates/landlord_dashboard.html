@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Landlord view — The Kettle{% endblock %}
+{% block content %}
+<h1>Landlord view</h1>
+<p class="sub">Payment status only. You never see what anyone bought, what rent, utilities, or groceries cost
+  individually, or who covered whom &mdash; just whether each tenant is paid up.</p>
+
+{% if not data %}
+<section class="panel">
+  <p class="empty">You're not linked as a landlord on any kettle yet. A tenant can add you from their kettle's page.</p>
+</section>
+{% endif %}
+
+{% for d in data %}
+<section class="panel">
+  <div class="row-between">
+    <h3>{{ d.kettle["name"] }}</h3>
+    <span class="pill {{ 'status-ok' if d.paid_count == d.total else 'warn-pill' }}">{{ d.paid_count }}/{{ d.total }} paid up</span>
+  </div>
+  <table class="member-table">
+    <thead><tr><th>Tenant</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for t in d.tenants %}
+      <tr>
+        <td>
+          {{ t.name }}
+          {% if t.leaving %}<span class="pill warn-pill">leaving — still liable</span>{% endif %}
+          {% if t.leave_pending %}<span class="pill warn-pill">wants to leave</span>{% endif %}
+        </td>
+        <td>
+          {% if t.paid_up %}
+            <span class="status-ok">&#10003; Paid up</span>
+          {% else %}
+            <span class="status-owing">Owes QR {{ "%.2f"|format(t.owed) }}</span>
+          {% endif %}
+        </td>
+        <td class="actions">
+          {% if t.leave_pending %}
+          <form method="post" action="{{ url_for('approve_leave', kettle_id=d.kettle['id'], target_id=t.user_id) }}" onsubmit="return confirm('Approve {{ t.name }} for exit? They will be fully off the kettle.');">
+            <button class="btn btn-sm btn-primary" type="submit">Approve exit</button>
+          </form>
+          <form method="post" action="{{ url_for('deny_leave', kettle_id=d.kettle['id'], target_id=t.user_id) }}">
+            <button class="btn btn-sm btn-ghost" type="submit">Deny</button>
+          </form>
+          {% else %}
+          <form method="post" action="{{ url_for('release_early', kettle_id=d.kettle['id'], target_id=t.user_id) }}" onsubmit="return confirm('Release {{ t.name }} early, overriding any balance owed?');">
+            <button class="btn btn-sm btn-ghost" type="submit">Release early</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endfor %}
+{% endblock %}
